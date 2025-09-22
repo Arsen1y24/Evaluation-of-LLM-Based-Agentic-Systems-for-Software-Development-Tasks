@@ -2,17 +2,19 @@ agent:
 
 inspired by what I've seen in Junie working trajectory - should be different ways of prompting
 
-- Agent gets a task (it would be from evaluation/create/humaneval-x/data/python/data/humaneval.jsonl -
+- (done) Agent gets a task (it would be from evaluation/create/humaneval-x/data/python/data/humaneval.jsonl -
 as there is task_id, prompt, canonical solution and tests)
 
 - Agent in ReAct style approaches solving the task (I hope it would be possible for me to
     1. give some guidelines to LLM
     2. make Qwen3-0.6B a bit more clever :)
+    3. it may use tools (running tests - the sandbox may be not the best solution, probably OctoPack would perform that for me)
 )
     - need to keep the thoughts (StateGraph)
 
 - This ^  may be done in async-approach, so it would be more efficient
 
+/*
 - After some time we get the solution (idk, in what format. In Junie there are line numbers
 and the model provides a patch. Maybe I would do the same way, [but (2.)]. Most probably
 it would be just some code which the agent would come uo with)
@@ -21,6 +23,8 @@ that may require some modifications. **prob the hardest step**
 
     - I may allow agent to use some tools
     - (Probably may include later human-in-the-loop - with StateGraph)
+*/
+- After some time we get the solution as fixed function implementation
 
 - Take the resulting code and run on tests from OctoPack (it would make them of correct format
 and would run in sandbox)
