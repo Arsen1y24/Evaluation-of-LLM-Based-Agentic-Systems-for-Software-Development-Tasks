@@ -9,6 +9,7 @@ from langchain_core.tools import tool
 import torch
 from langchain_huggingface import ChatHuggingFace, HuggingFaceEndpoint, HuggingFacePipeline
 from uuid import uuid4
+from typing import Optional, Callable, List, Dict, Any, Tuple
 
 from enum import Enum, auto
 class HumanEvalFixVersion(Enum):
@@ -70,6 +71,122 @@ class Agent :
             ]
         }
 
+    def build_agent_prompt_from_version(
+        self,
+        version: Optional["HumanEvalFixVersion"],
+        buggy_code: Optional[str] = None,
+        test: Optional[str] = None,
+        starting_prompt: Optional[str] = None,
+    ) -> str:
+        """
+        Build the starting prompt for the agent from a version enum or a custom starting prompt.
+        If starting_prompt is provided, it takes precedence over version-based templates.
+        """
+        if starting_prompt:
+            return starting_prompt
+        if version == HumanEvalFixVersion.WITH_DOCSTRING:
+            return (
+                f"Here is a buggy function with docstring:\n{buggy_code}\n"
+                f"Please fix the function so it would implement the correct behavior."
+            )
+        if version == HumanEvalFixVersion.WITH_TESTS:
+            return (
+                f"Here is a buggy function:\n{buggy_code}\nHere are the unit tests:\n{test}\n"
+                f"Please fix the function so it passes the tests."
+            )
+        # Fallback
+        return buggy_code or starting_prompt or ""
+
+    def create_thread_config(
+        self,
+        max_steps: int = 20,
+        thread_id: Optional[str] = None,
+    ) -> Tuple[RunnableConfig, str]:
+        """
+        Create a RunnableConfig with a new or provided thread_id. Returns (config, thread_id).
+        """
+        if thread_id is None:
+            thread_id = str(uuid4())
+        config: RunnableConfig = {"configurable": {"thread_id": thread_id, "max_steps": max_steps}}
+        return config, thread_id
+
+    def stream_agent_updates(
+        self,
+        input_prompt: Dict[str, Any],
+        config: RunnableConfig,
+        should_stop: Optional[Callable[[], bool]] = None,
+    ) -> str:
+        """
+        Stream updates from the agent and build a transcript. If should_stop() returns True,
+        the streaming loop will end early and the transcript will note it.
+        """
+        transcript_lines: List[str] = []
+        try:
+            for update in self.agent.stream(
+                Command(update=input_prompt),
+                config=config,
+                stream_mode="updates",
+            ):
+                if should_stop and should_stop():
+                    transcript_lines.append("[info] Stopping task on request.")
+                    break
+                if self.debug:
+                    print("UPDATE:", update)
+                for node, payload in update.items():
+                    transcript_lines.append(f"[{node}] {payload}")
+                    print(f"[{node}] {payload}")
+        except Exception as e:
+            transcript_lines.append(f"[error] {e}")
+        return "\n".join(str(line) for line in transcript_lines)
+
+    def start_task(
+        self,
+        prompt: str,
+        tests: str = "",
+        tests_visible_to_model: bool = False,
+        max_steps: int = 20,
+        should_stop: Optional[Callable[[], bool]] = None,
+        thread_id: Optional[str] = None,
+    ) -> str:
+        """Start a single task with a custom prompt and optional stopping callback."""
+        self._ensure_initialized()
+        input_prompt = self.build_prompt_msg(prompt)
+        config, tid = self.create_thread_config(max_steps=max_steps, thread_id=thread_id)
+        if self.debug:
+            print(f"Starting task with thread_id={tid}")
+        return self.stream_agent_updates(input_prompt, config, should_stop=should_stop)
+
+
+    def provide_fixes_with_options(
+            self,
+            versions: Optional[List[HumanEvalFixVersion]] = None,
+            buggy_code: Optional[str] = None,
+            test: Optional[str] = None,
+            prompts: Optional[List[str]] = None,
+            max_steps: int = 20,
+            should_stop: Optional[Callable[[], bool]] = None,
+    ) -> Dict[str, str]:
+        """
+        Run the agent for multiple starting points: a list of versions and/or a list of custom prompts.
+        Returns a dict mapping a run key to its transcript.
+        """
+        results: Dict[str, str] = {}
+
+        # Run for each version
+        if versions:
+            for v in versions:
+                start_text = self.build_agent_prompt_from_version(v, buggy_code=buggy_code, test=test)
+                key = f"version:{v.name}"
+                results[key] = self.start_task(start_text, max_steps=max_steps, should_stop=should_stop)
+
+        # Run for custom prompts
+        if prompts:
+            for idx, p in enumerate(prompts):
+                key = f"prompt:{idx}"
+                results[key] = self.start_task(p, max_steps=max_steps, should_stop=should_stop)
+
+        return results
+
 
     def run_tests_sandbox(self, code: str, tests: str) -> str:
         """
@@ -105,44 +222,15 @@ class Agent :
             return f"Error while running tests: {e}"
 
 
-    def provide_fixes_raw(self, prompt: str):
+    def provide_fixes_raw(self, prompt: str, tests: str, tests_visible_to_model: bool = False):
         """
         Run the ReAct agent on the given prompt and return a readable transcript
         that includes the reasoning (Thought) and action steps, as well as any
         tool results. Each call uses a fresh thread_id so no context is carried
         between tasks.
         """
-        # Ensure heavy components are initialized only when needed
-        self._ensure_initialized()
-        input_prompt = self.build_prompt_msg(prompt)
-
-        # Fresh thread id per call to avoid carrying context between tasks
-        thread_id = str(uuid4())
-
-        if self.debug:
-            print(f"Starting task with thread_id={thread_id}")
-
-        config: RunnableConfig = {"configurable": {"thread_id": thread_id, "max_steps": 20}}
-        transcript_lines = []
-
-        try:
-            # Stream updates so we can expose Thought/Action/Observation steps
-            for update in self.agent.stream(
-                    Command(update=input_prompt),
-                    config=config,
-                    stream_mode="updates"
-            ):
-                if self.debug:
-                    print("UPDATE:", update)
-                # update is a dict of node_name -> payload; stringify for readability
-                for node, payload in update.items():
-                    transcript_lines.append(f"[{node}] {payload}")
-                    print(f"[{node}] {payload}")
-        except Exception as e:
-            transcript_lines.append(f"[error] {e}")
-
-        # Return the transcript as a single string so the caller can see steps
-        return "\n".join(str(line) for line in transcript_lines)
+        # Backward-compatible wrapper using new helpers
+        return self.start_task(prompt, tests, tests_visible_to_model, max_steps=20)
 
 
     def process(self, version: HumanEvalFixVersion, buggy_code: str, test: str):
@@ -164,12 +252,13 @@ class Agent :
         # after, the OctoPack - testing
         # here the steps of agent's solution should be visible
 
-        agent_input = ""
-        if version == HumanEvalFixVersion.WITH_DOCSTRING:
-            agent_input = f"Here is a buggy function with docstring:\n{buggy_code}\nPlease fix the function so it would implement the correct behavior."
-        elif version == HumanEvalFixVersion.WITH_TESTS:
-            agent_input = f"Here is a buggy function:\n{buggy_code}\nHere are the unit tests:\n{test}\nPlease fix the function so it passes the tests."
+        agent_input = self.build_agent_prompt_from_version(version=version, buggy_code=buggy_code, test=test)
 
-        transcript = self.provide_fixes_raw(agent_input)
+        fixed_code_by_agent = self.provide_fixes_raw(
+            agent_input,
+            tests=test,
+            tests_visible_to_model=
+            (version == HumanEvalFixVersion.WITH_TESTS)
+        )
 
         return "resulting_code", "passed_tests"
