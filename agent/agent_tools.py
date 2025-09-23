@@ -1,4 +1,4 @@
-from langchain_core.tools import tool
+from langchain_core.tools import tool, Tool
 
 from RestrictedPython import compile_restricted, safe_globals
 from datetime import datetime
@@ -95,3 +95,18 @@ def finalize_solution(code: str) -> str:
     Agent can use this tool to finish the task execution.
     """
     return f"[Final Solution]\n{code}"
+
+
+agent_tools = [
+    Tool(
+        name="run_tests_sandbox",
+        func=run_tests_sandbox,
+        description="Executes the generated code and tests in a restricted sandbox."
+    ),
+    Tool(
+        name="finalize_solution",
+        func=finalize_solution,
+        description="Returns the final solution code after agent completes all steps."
+    )
+]
+

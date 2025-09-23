@@ -40,4 +40,6 @@ additionally:
 - make the simplest version work
 - add async
 - add OctoPack-eval (pass@1) (may be tough)
+- make fixes as git diff (so that
+ the model won't need to rewrite a lot of code -> make mistakes)
 - try with stategraph (perhaps redundant)
