@@ -32,3 +32,12 @@ and would run in sandbox)
 - Metrics
 
 - Instructions
+
+-------------
+
+additionally:
+
+- make the simplest version work
+- add async
+- add OctoPack-eval (pass@1) (may be tough)
+- try with stategraph (perhaps redundant)
