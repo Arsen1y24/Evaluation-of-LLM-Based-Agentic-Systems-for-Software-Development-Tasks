@@ -9,6 +9,7 @@ from uuid import uuid4
 from typing import Callable, Any, Tuple, Optional
 from enum import Enum, auto
 
+from evaluation.octopack_runner import run_octopack_tests
 from .agent_tools import *
 
 class HumanEvalFixVersion(Enum):
@@ -311,7 +312,6 @@ class Agent :
         # Try OctoPack tests runner if configuration and tests exist; otherwise fallback to sandbox tests
         result_run: str
         try:
-            from evaluation.octopack_runner import run_octopack_tests  # local import to avoid hard dependency
             import os
             has_octopack = os.path.exists(os.path.join(os.getcwd(), "octopack.yaml"))
             if has_octopack:
