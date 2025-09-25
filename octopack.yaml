@@ -1,0 +1,7 @@
+language: python
+entry_point: solution.py
+tests:
+  path: tests
+  input_pattern: input*.txt
+  output_pattern: output*.txt
+  type: file
