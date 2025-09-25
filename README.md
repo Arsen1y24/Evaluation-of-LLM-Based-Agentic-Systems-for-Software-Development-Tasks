@@ -27,3 +27,12 @@ The agent uses a sandboxed environment for safe execution and can run **fully of
 
 chmod +x setup.sh
 ./setup.sh
+```
+
+### Run
+
+```bash
+
+python3 evaluation/test.py
+```
+

@@ -204,7 +204,7 @@ class Agent :
             model=model,
             tokenizer=tokenizer,
             max_new_tokens=5000,
-            temperature=0.6,
+            temperature=0.2,
             top_p = 0.95,
             top_k=20,
         )
@@ -245,6 +245,8 @@ class Agent :
                     print("UPDATE:", update)
                 for node, payload in update.items():
                     transcript_lines.append(f"[{node}] {payload}")
+                    with open(RUN_LOG, "a") as f:
+                        f.write(f"[{node}] {payload}\n")
                     print(f"[{node}] {payload}\n")
                     if node == "agent":
                         print(f"[Agent Thought] {payload}")
@@ -314,6 +316,8 @@ class Agent :
             has_octopack = os.path.exists(os.path.join(os.getcwd(), "octopack.yaml"))
             if has_octopack:
                 passed, details = run_octopack_tests(fixed_code_by_agent, root_dir=os.getcwd())
+                with open(RUN_LOG, "a") as f:
+                    f.write("[OctoPack] Details:\n" + "\n".join(details))
                 print("[OctoPack] Details:\n" + "\n".join(details))
                 result_run = "All tests passed" if passed else "OctoPack tests failed"
             else:

@@ -10,7 +10,12 @@ df = pd.DataFrame(data)
 
 my_agent = Agent(tools=agent_tools, debug=False)
 
+with open(RUN_LOG, "w") as f:
+    f.write("")
+
 for ind, test_item in df.iterrows():
+    with open(RUN_LOG, "a") as f:
+        f.write(f"{test_item['task_id']=}")
     print(f"{test_item['task_id']=}")
     # testing on the buggy solution (with docstring),
     # the agent has tests
@@ -29,5 +34,7 @@ for ind, test_item in df.iterrows():
     print("--======--" * 5)
     print(test_item["task_id"])
     print(success_t)
+    with open(RUN_LOG, "a") as f:
+        f.write(f"{code_t=}, \n{success_t=}")
     print(code_t, success_t)
     print("\n\fFINISHED TASK\n\n")

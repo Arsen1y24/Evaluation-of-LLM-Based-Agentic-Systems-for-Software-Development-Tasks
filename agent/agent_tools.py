@@ -5,6 +5,8 @@ from datetime import datetime
 from typing import List, Dict, Union
 
 LOG_FILE = "sandbox.log"
+RUN_LOG = "all_runs.log"
+
 
 def log_message(message: str):
     """Log message to file with timestamp"""
@@ -111,6 +113,7 @@ def finalize_solution(code: str) -> str:
     Finishes the task and returns the final solution.
     Agent can use this tool to finish the task execution.
     """
+    print("\n\nFINALIZINGGGG\n\n")
     return f"[Final Solution]\n{code}"
 
 
