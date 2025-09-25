@@ -43,3 +43,8 @@ additionally:
 - make fixes as git diff (so that
  the model won't need to rewrite a lot of code -> make mistakes)
 - try with stategraph (perhaps redundant)
+
+- now it's a bit scary to use large prompts as otherwise the small model may be too loaded
+- 4096 tokens is perhaps enough
+- !!! NEED TO FORCE THE MODEL TO MAKE SOME RUNS WITHOUT SUBMITTING + SUBMIT IN CORRECT FORMAT !!!
+- make thoughts shorts and informative (with another prompts)
